@@ -1,19 +1,27 @@
 from fastapi import FastAPI
 
+from app.api.documents import router as documents_router
 from app.api.health import router as health_router
+from app.config import get_settings
+
+
+settings = get_settings()
 
 app = FastAPI(
-    title="IT Copilot",
-    version="0.1.0",
-    description="Private AI-powered IT assistant.",
+    title=settings.app_name,
+    version=settings.app_version,
+    description=settings.app_description,
+    debug=settings.debug,
 )
 
 app.include_router(health_router)
+app.include_router(documents_router)
 
 
 @app.get("/", tags=["General"])
 def root() -> dict[str, str]:
     return {
-        "message": "Welcome to IT Copilot!",
+        "message": f"Welcome to {settings.app_name}!",
         "status": "running",
+        "environment": settings.environment,
     }
