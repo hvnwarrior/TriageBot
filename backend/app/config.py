@@ -1,0 +1,65 @@
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+PROJECT_DIR = BACKEND_DIR.parent
+
+# ==========================================================
+# Project Directories
+# ==========================================================
+
+DOCS_DIR = PROJECT_DIR / "docs"
+UPLOADS_DIR = DOCS_DIR / "uploads"
+CACHE_DIR = DOCS_DIR / "cache"
+
+DATA_DIR = PROJECT_DIR / "data"
+
+SCRIPTS_DIR = PROJECT_DIR / "scripts"
+DOCKER_DIR = PROJECT_DIR / "docker"
+
+class Settings(BaseSettings):
+    # ==========================================================
+    # Application
+    # ==========================================================
+    app_name: str = "IT Copilot"
+    app_version: str = "0.1.0"
+    app_description: str = "Private AI-powered IT assistant."
+
+    # ==========================================================
+    # Environment
+    # ==========================================================
+    environment: str = "development"
+    debug: bool = True
+    log_level: str = "INFO"
+
+    # ==========================================================
+    # Storage
+    # ==========================================================
+    knowledge_base_directory: Path = DOCS_DIR
+    uploads_directory: Path = UPLOADS_DIR
+    cache_directory: Path = CACHE_DIR
+    data_directory: Path = DATA_DIR
+
+
+    # ==========================================================
+    # AI (Future)
+    # ==========================================================
+    openai_api_key: str = ""
+    chat_model: str = ""
+    embedding_model: str = "text-embedding-3-small"
+
+    model_config = SettingsConfigDict(
+        env_file=PROJECT_DIR / ".env",
+        env_file_encoding="utf-8",
+        env_prefix="IT_COPILOT_",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
