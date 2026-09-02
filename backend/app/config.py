@@ -48,9 +48,9 @@ class Settings(BaseSettings):
     # ==========================================================
     # AI (Future)
     # ==========================================================
-    openai_api_key: str = ""
-    chat_model: str = ""
-    embedding_model: str = "text-embedding-3-small"
+    anthropic_api_key: str = "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"
+    chat_model: str = "claude-sonnet-5"
+    embedding_model: str = "local"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_DIR / ".env",
