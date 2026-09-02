@@ -41,6 +41,22 @@ class DocumentService:
 
         return sorted(files, key=lambda file: str(file["name"]))
 
+    def get_file_path(self, category: str, filename: str) -> Path | None:
+        category_directory = self.knowledge_base_directory / category
+
+        try:
+            category_directory = category_directory.resolve()
+            file_path = (category_directory / filename).resolve()
+
+            file_path.relative_to(category_directory)
+        except ValueError:
+            return None
+
+        if not file_path.exists() or not file_path.is_file():
+            return None
+
+        return file_path
+
     @staticmethod
     def _get_file_type(file: Path) -> str:
         extension = file.suffix.lower()

@@ -1,8 +1,7 @@
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException
 
 from app.config import get_settings
+from app.services.document_chunker import DocumentChunker
 from app.services.document_extractor import DocumentExtractor
 from app.services.document_service import DocumentService
 
@@ -19,6 +18,7 @@ document_service = DocumentService(
 )
 
 document_extractor = DocumentExtractor()
+document_chunker = DocumentChunker()
 
 
 @router.get("")
@@ -43,21 +43,9 @@ def get_document_content(
     category: str,
     filename: str,
 ) -> dict[str, str]:
-    category_directory = settings.knowledge_base_directory / category
-    file_path = category_directory / filename
+    file_path = document_service.get_file_path(category, filename)
 
-    try:
-        category_directory = category_directory.resolve()
-        file_path = file_path.resolve()
-
-        file_path.relative_to(category_directory)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid document path.",
-        )
-
-    if not file_path.exists() or not file_path.is_file():
+    if file_path is None:
         raise HTTPException(
             status_code=404,
             detail="Document not found.",
@@ -75,4 +63,35 @@ def get_document_content(
         "category": category,
         "filename": filename,
         "content": content,
+    }
+
+
+@router.get("/{category}/{filename}/chunks")
+def get_document_chunks(
+    category: str,
+    filename: str,
+) -> dict[str, str | int | list[str]]:
+    file_path = document_service.get_file_path(category, filename)
+
+    if file_path is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        )
+
+    try:
+        content = document_extractor.extract(file_path)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=415,
+            detail=str(error),
+        )
+
+    chunks = document_chunker.chunk_text(content)
+
+    return {
+        "category": category,
+        "filename": filename,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
     }
