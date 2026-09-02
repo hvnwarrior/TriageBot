@@ -40,6 +40,10 @@ class DocumentIndexer:
                 }
             )
 
-        self.vector_store.add_chunks(indexed_chunks)
+        self.vector_store.add_chunks(
+            chunks=indexed_chunks,
+            category=file_path.parent.name,
+            filename=file_path.name,
+        )
 
         return indexed_chunks

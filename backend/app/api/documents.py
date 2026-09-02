@@ -1,13 +1,12 @@
 from fastapi import APIRouter, HTTPException
 
-from pathlib import Path
-
 from app.config import get_settings
 from app.services.document_chunker import DocumentChunker
 from app.services.document_extractor import DocumentExtractor
+from app.services.document_indexer import DocumentIndexer
 from app.services.document_service import DocumentService
 from app.services.embedding_service import EmbeddingService
-from app.services.document_indexer import DocumentIndexer
+from app.services.search_service import SearchService
 from app.services.vector_store import VectorStore
 
 
@@ -25,13 +24,21 @@ document_service = DocumentService(
 document_extractor = DocumentExtractor()
 document_chunker = DocumentChunker()
 embedding_service = EmbeddingService()
+
+vector_store = VectorStore(
+    storage_directory=settings.vector_store_directory,
+)
+
 document_indexer = DocumentIndexer(
     document_extractor=document_extractor,
     document_chunker=document_chunker,
     embedding_service=embedding_service,
-    vector_store=VectorStore(
-        storage_directory=settings.vector_store_directory,
-    )
+    vector_store=vector_store,
+)
+
+search_service = SearchService(
+    embedding_service=embedding_service,
+    vector_store=vector_store,
 )
 
 
@@ -40,6 +47,26 @@ def list_documents() -> dict[str, list[str]]:
     return {
         "directories": document_service.list_directories(),
     }
+
+
+@router.get("/search")
+def search_documents(
+    query: str,
+    number_of_results: int = 5,
+) -> dict:
+    try:
+        results = search_service.search(
+            query=query,
+            number_of_results=number_of_results,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    return results
 
 
 @router.get("/{category}")
@@ -109,6 +136,7 @@ def get_document_chunks(
         "chunk_count": len(chunks),
         "chunks": chunks,
     }
+
 
 @router.get("/{category}/{filename}/embedding")
 def get_document_embedding(

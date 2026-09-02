@@ -20,12 +20,14 @@ class VectorStore:
     def add_chunks(
         self,
         chunks: list[dict[str, str | int | list[float]]],
+        category: str,
+        filename: str,
     ) -> None:
         if not chunks:
             return
 
         ids = [
-            str(chunk["chunk_index"])
+            f"{category}_{filename}_{chunk['chunk_index']}"
             for chunk in chunks
         ]
 
@@ -41,6 +43,8 @@ class VectorStore:
 
         metadatas = [
             {
+                "category": category,
+                "filename": filename,
                 "chunk_index": int(chunk["chunk_index"]),
             }
             for chunk in chunks
@@ -51,6 +55,16 @@ class VectorStore:
             documents=documents,
             embeddings=embeddings,
             metadatas=metadatas,
+        )
+
+    def search(
+        self,
+        embedding: list[float],
+        number_of_results: int = 5,
+    ) -> dict:
+        return self.collection.query(
+            query_embeddings=[embedding],
+            n_results=number_of_results,
         )
 
     def count(self) -> int:
