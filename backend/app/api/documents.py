@@ -4,6 +4,8 @@ from app.config import get_settings
 from app.services.document_chunker import DocumentChunker
 from app.services.document_extractor import DocumentExtractor
 from app.services.document_service import DocumentService
+from app.services.embedding_service import EmbeddingService
+from app.services.document_indexer import DocumentIndexer
 
 
 router = APIRouter(
@@ -19,6 +21,12 @@ document_service = DocumentService(
 
 document_extractor = DocumentExtractor()
 document_chunker = DocumentChunker()
+embedding_service = EmbeddingService()
+document_indexer = DocumentIndexer(
+    document_extractor=document_extractor,
+    document_chunker=document_chunker,
+    embedding_service=embedding_service,
+)
 
 
 @router.get("")
@@ -94,4 +102,39 @@ def get_document_chunks(
         "filename": filename,
         "chunk_count": len(chunks),
         "chunks": chunks,
+    }
+
+@router.get("/{category}/{filename}/embedding")
+def get_document_embedding(
+    category: str,
+    filename: str,
+) -> dict[str, str | int]:
+    file_path = document_service.get_file_path(category, filename)
+
+    if file_path is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        )
+
+    try:
+        indexed_chunks = document_indexer.index_document(file_path)
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=415,
+            detail=str(error),
+        )
+
+    if not indexed_chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="Document contains no extractable text.",
+        )
+
+    return {
+        "category": category,
+        "filename": filename,
+        "chunk_count": len(indexed_chunks),
+        "status": "document_indexed",
     }
