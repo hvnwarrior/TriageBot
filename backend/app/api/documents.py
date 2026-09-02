@@ -24,7 +24,9 @@ def list_documents() -> dict[str, list[str]]:
 
 
 @router.get("/{category}")
-def list_category_documents(category: str) -> dict[str, list[str] | str]:
+def list_category_documents(
+    category: str,
+) -> dict[str, list[dict[str, str | int]] | str]:
     return {
         "category": category,
         "files": document_service.list_files(category),
