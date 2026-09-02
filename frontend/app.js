@@ -12,6 +12,13 @@ const messages = document.getElementById("messages");
 
 
 /* ==========================================================
+   Conversation
+   ========================================================== */
+
+let conversationId = null;
+
+
+/* ==========================================================
    Sidebar
    ========================================================== */
 
@@ -39,6 +46,8 @@ sidebarOverlay.addEventListener("click", closeSidebar);
    ========================================================== */
 
 function startNewChat() {
+    conversationId = null;
+
     messages.innerHTML = "";
 
     addWelcomeMessage();
@@ -47,13 +56,20 @@ function startNewChat() {
     messageInput.style.height = "auto";
 
     closeSidebar();
+
     messageInput.focus();
 }
 
 
-sidebarNewChatButton.addEventListener("click", startNewChat);
+sidebarNewChatButton.addEventListener(
+    "click",
+    startNewChat
+);
 
-newChatButton.addEventListener("click", startNewChat);
+newChatButton.addEventListener(
+    "click",
+    startNewChat
+);
 
 
 /* ==========================================================
@@ -103,15 +119,21 @@ function addWelcomeMessage() {
    ========================================================== */
 
 function attachSuggestionHandlers() {
-    document.querySelectorAll(".suggestion").forEach((button) => {
-        button.addEventListener("click", () => {
-            messageInput.value = button.textContent.trim();
+    document.querySelectorAll(".suggestion").forEach(
+        (button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    messageInput.value =
+                        button.textContent.trim();
 
-            resizeInput();
+                    resizeInput();
 
-            messageInput.focus();
-        });
-    });
+                    messageInput.focus();
+                }
+            );
+        }
+    );
 }
 
 
@@ -123,20 +145,32 @@ function resizeInput() {
     messageInput.style.height = "auto";
 
     messageInput.style.height =
-        `${Math.min(messageInput.scrollHeight, 140)}px`;
+        `${Math.min(
+            messageInput.scrollHeight,
+            140
+        )}px`;
 }
 
 
-messageInput.addEventListener("input", resizeInput);
+messageInput.addEventListener(
+    "input",
+    resizeInput
+);
 
 
-messageInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
+messageInput.addEventListener(
+    "keydown",
+    (event) => {
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+            event.preventDefault();
 
-        chatForm.requestSubmit();
+            chatForm.requestSubmit();
+        }
     }
-});
+);
 
 
 /* ==========================================================
@@ -156,6 +190,7 @@ async function sendMessageToBackend(message) {
 
                 body: JSON.stringify({
                     message: message,
+                    conversation_id: conversationId,
                     number_of_results: 3,
                 }),
             }
@@ -165,14 +200,18 @@ async function sendMessageToBackend(message) {
             const error = await response.json();
 
             throw new Error(
-                error.detail || "The server returned an error."
+                error.detail ||
+                "The server returned an error."
             );
         }
 
         return await response.json();
 
     } catch (error) {
-        console.error("Chat error:", error);
+        console.error(
+            "Chat error:",
+            error
+        );
 
         return {
             error: error.message,
@@ -186,9 +225,11 @@ async function sendMessageToBackend(message) {
    ========================================================== */
 
 function addUserMessage(text) {
-    const message = document.createElement("div");
+    const message =
+        document.createElement("div");
 
-    message.className = "message user-message";
+    message.className =
+        "message user-message";
 
     message.innerHTML = `
         <div class="message-content">
@@ -207,9 +248,11 @@ function addUserMessage(text) {
    ========================================================== */
 
 function addAssistantMessage(response) {
-    const message = document.createElement("div");
+    const message =
+        document.createElement("div");
 
-    message.className = "message assistant-message";
+    message.className =
+        "message assistant-message";
 
     if (response.error) {
         message.innerHTML = `
@@ -219,7 +262,8 @@ function addAssistantMessage(response) {
 
             <div class="message-content">
                 <p>
-                    I couldn't connect to the IT Copilot server.
+                    I couldn't connect to the
+                    IT Copilot server.
                 </p>
 
                 <p class="error-message">
@@ -235,25 +279,46 @@ function addAssistantMessage(response) {
         return;
     }
 
-    const sources = response.sources || [];
+    /*
+     * Store the conversation ID returned by
+     * the backend.
+     *
+     * Follow-up messages will use this ID.
+     */
+    if (
+        response.conversation_id !== undefined
+    ) {
+        conversationId =
+            response.conversation_id;
+    }
 
-    const sourceHtml = sources.length > 0
-        ? `
-            <div class="sources">
-                <div class="sources-title">
-                    Sources
-                </div>
+    const sources =
+        response.sources || [];
 
-                ${sources.map((source) => `
-                    <div class="source">
-                        ${escapeHtml(source.category)}
-                        ·
-                        ${escapeHtml(source.filename)}
+    const sourceHtml =
+        sources.length > 0
+            ? `
+                <div class="sources">
+                    <div class="sources-title">
+                        Sources
                     </div>
-                `).join("")}
-            </div>
-        `
-        : "";
+
+                    ${sources.map(
+                        (source) => `
+                            <div class="source">
+                                ${escapeHtml(
+                                    source.category
+                                )}
+                                ·
+                                ${escapeHtml(
+                                    source.filename
+                                )}
+                            </div>
+                        `
+                    ).join("")}
+                </div>
+            `
+            : "";
 
     message.innerHTML = `
         <div class="assistant-label">
@@ -284,32 +349,109 @@ function formatResponse(text) {
 
     const codeBlocks = [];
 
-    let escaped = escapeHtml(text)
-        .replace(/\r\n/g, "\n")
-        .replace(/\r/g, "\n");
+    let escaped =
+        escapeHtml(text);
+
+    escaped =
+        escaped.replaceAll(
+            "\r\n",
+            "\n"
+        );
+
+    escaped =
+        escaped.replaceAll(
+            "\r",
+            "\n"
+        );
+
 
     /*
-     * Extract fenced code blocks before processing the rest
-     * of the Markdown.
+     * Extract fenced code blocks.
      */
-    escaped = escaped.replace(
-        /```[^\n]*\n([\s\S]*?)```/g,
-        (match, code) => {
-            const index = codeBlocks.length;
 
-            codeBlocks.push(
-                `<pre><code>${code.trim()}</code></pre>`
+    let processedText = "";
+
+    let searchPosition = 0;
+
+    while (true) {
+        const start =
+            escaped.indexOf(
+                "```",
+                searchPosition
             );
 
-            return `@@CODE_BLOCK_${index}@@`;
-        }
-    );
+        if (start === -1) {
+            processedText +=
+                escaped.substring(
+                    searchPosition
+                );
 
-    const lines = escaped.split("\n");
+            break;
+        }
+
+        processedText +=
+            escaped.substring(
+                searchPosition,
+                start
+            );
+
+        const openingLineEnd =
+            escaped.indexOf(
+                "\n",
+                start + 3
+            );
+
+        if (openingLineEnd === -1) {
+            processedText +=
+                escaped.substring(start);
+
+            break;
+        }
+
+        const codeStart =
+            openingLineEnd + 1;
+
+        const closing =
+            escaped.indexOf(
+                "```",
+                codeStart
+            );
+
+        if (closing === -1) {
+            processedText +=
+                escaped.substring(start);
+
+            break;
+        }
+
+        const code =
+            escaped.substring(
+                codeStart,
+                closing
+            );
+
+        const codeIndex =
+            codeBlocks.length;
+
+        codeBlocks.push(
+            `<pre><code>${code.trim()}</code></pre>`
+        );
+
+        processedText +=
+            `@@CODE_BLOCK_${codeIndex}@@`;
+
+        searchPosition =
+            closing + 3;
+    }
+
+
+    const lines =
+        processedText.split("\n");
 
     const output = [];
 
     let listType = null;
+
 
     function closeList() {
         if (listType === "ul") {
@@ -323,12 +465,22 @@ function formatResponse(text) {
         listType = null;
     }
 
-    for (let index = 0; index < lines.length; index++) {
-        const line = lines[index];
-        const nextLine = lines[index + 1] || "";
+
+    for (
+        let index = 0;
+        index < lines.length;
+        index++
+    ) {
+        const line =
+            lines[index];
+
+        const nextLine =
+            lines[index + 1] || "";
+
 
         if (!line.trim()) {
             closeList();
+
             continue;
         }
 
@@ -355,7 +507,9 @@ function formatResponse(text) {
                 lines[index].includes("|") &&
                 lines[index].trim()
             ) {
-                tableLines.push(lines[index]);
+                tableLines.push(
+                    lines[index]
+                );
 
                 index++;
             }
@@ -374,19 +528,18 @@ function formatResponse(text) {
            Headings
            -------------------------------------------------- */
 
-        const headingMatch = line.match(
-            /^(#{1,6})\s+(.+)$/
-        );
+        const heading =
+            getHeading(line);
 
-        if (headingMatch) {
+        if (heading !== null) {
             closeList();
 
-            const level = headingMatch[1].length;
-
             output.push(
-                `<h${level}>${formatInlineMarkdown(
-                    headingMatch[2]
-                )}</h${level}>`
+                `<h${heading.level}>` +
+                `${formatInlineMarkdown(
+                    heading.text
+                )}` +
+                `</h${heading.level}>`
             );
 
             continue;
@@ -398,7 +551,7 @@ function formatResponse(text) {
            -------------------------------------------------- */
 
         if (
-            /^(\*{3,}|-{3,}|_{3,})$/.test(
+            isHorizontalRule(
                 line.trim()
             )
         ) {
@@ -414,11 +567,10 @@ function formatResponse(text) {
            Unordered List
            -------------------------------------------------- */
 
-        const unorderedMatch = line.match(
-            /^\s*[-*+]\s+(.+)$/
-        );
+        const unordered =
+            getUnorderedListItem(line);
 
-        if (unorderedMatch) {
+        if (unordered !== null) {
             if (listType !== "ul") {
                 closeList();
 
@@ -429,7 +581,7 @@ function formatResponse(text) {
 
             output.push(
                 `<li>${formatInlineMarkdown(
-                    unorderedMatch[1]
+                    unordered
                 )}</li>`
             );
 
@@ -441,11 +593,10 @@ function formatResponse(text) {
            Ordered List
            -------------------------------------------------- */
 
-        const orderedMatch = line.match(
-            /^\s*\d+\.\s+(.+)$/
-        );
+        const ordered =
+            getOrderedListItem(line);
 
-        if (orderedMatch) {
+        if (ordered !== null) {
             if (listType !== "ol") {
                 closeList();
 
@@ -456,7 +607,7 @@ function formatResponse(text) {
 
             output.push(
                 `<li>${formatInlineMarkdown(
-                    orderedMatch[1]
+                    ordered
                 )}</li>`
             );
 
@@ -465,11 +616,13 @@ function formatResponse(text) {
 
 
         /* --------------------------------------------------
-           Code Block
+           Code Block Placeholder
            -------------------------------------------------- */
 
         if (
-            line.includes("@@CODE_BLOCK_")
+            line.includes(
+                "@@CODE_BLOCK_"
+            )
         ) {
             closeList();
 
@@ -486,20 +639,30 @@ function formatResponse(text) {
         closeList();
 
         output.push(
-            `<p>${formatInlineMarkdown(line)}</p>`
+            `<p>${formatInlineMarkdown(
+                line
+            )}</p>`
         );
     }
 
+
     closeList();
 
-    let result = output.join("");
 
-    codeBlocks.forEach((codeBlock, index) => {
-        result = result.replace(
-            `@@CODE_BLOCK_${index}@@`,
-            codeBlock
-        );
-    });
+    let result =
+        output.join("");
+
+
+    codeBlocks.forEach(
+        (codeBlock, index) => {
+            result =
+                result.replace(
+                    `@@CODE_BLOCK_${index}@@`,
+                    codeBlock
+                );
+        }
+    );
+
 
     return result;
 }
@@ -512,27 +675,252 @@ function formatResponse(text) {
 function formatInlineMarkdown(text) {
     let result = text;
 
-    result = result.replace(
-        /`([^`]+)`/g,
-        "<code>$1</code>"
-    );
 
-    result = result.replace(
-        /\*\*(.+?)\*\*/g,
-        "<strong>$1</strong>"
-    );
+    /*
+     * Inline code
+     */
 
-    result = result.replace(
-        /(?<!\*)\*([^*]+)\*(?!\*)/g,
-        "<em>$1</em>"
-    );
+    result =
+        replaceBetweenMarkers(
+            result,
+            "`",
+            "<code>",
+            "</code>"
+        );
 
-    result = result.replace(
-        /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
+
+    /*
+     * Bold
+     */
+
+    result =
+        replaceBetweenMarkers(
+            result,
+            "**",
+            "<strong>",
+            "</strong>"
+        );
+
+
+    /*
+     * Italic
+     */
+
+    result =
+        replaceBetweenMarkers(
+            result,
+            "*",
+            "<em>",
+            "</em>"
+        );
+
 
     return result;
+}
+
+
+/* ==========================================================
+   Markdown Helpers
+   ========================================================== */
+
+function replaceBetweenMarkers(
+    text,
+    marker,
+    openingTag,
+    closingTag
+) {
+    let result = text;
+
+    let searchPosition = 0;
+
+    while (true) {
+        const start =
+            result.indexOf(
+                marker,
+                searchPosition
+            );
+
+        if (start === -1) {
+            break;
+        }
+
+        const contentStart =
+            start + marker.length;
+
+        const end =
+            result.indexOf(
+                marker,
+                contentStart
+            );
+
+        if (end === -1) {
+            break;
+        }
+
+        const content =
+            result.substring(
+                contentStart,
+                end
+            );
+
+        const replacement =
+            openingTag +
+            content +
+            closingTag;
+
+        result =
+            result.substring(
+                0,
+                start
+            ) +
+            replacement +
+            result.substring(
+                end + marker.length
+            );
+
+        searchPosition =
+            start + replacement.length;
+    }
+
+    return result;
+}
+
+
+function getHeading(line) {
+    let level = 0;
+
+    while (
+        level < line.length &&
+        line.charAt(level) === "#"
+    ) {
+        level++;
+    }
+
+    if (
+        level === 0 ||
+        level > 6
+    ) {
+        return null;
+    }
+
+    if (
+        line.charAt(level) !== " "
+    ) {
+        return null;
+    }
+
+    return {
+        level: level,
+        text: line.substring(
+            level + 1
+        ),
+    };
+}
+
+
+function isHorizontalRule(line) {
+    if (line.length < 3) {
+        return false;
+    }
+
+    const first =
+        line.charAt(0);
+
+    if (
+        first !== "-" &&
+        first !== "*" &&
+        first !== "_"
+    ) {
+        return false;
+    }
+
+    for (
+        let index = 0;
+        index < line.length;
+        index++
+    ) {
+        if (
+            line.charAt(index) !== first
+        ) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+function getUnorderedListItem(line) {
+    const trimmed =
+        line.trim();
+
+    if (
+        trimmed.startsWith("- ")
+    ) {
+        return trimmed.substring(2);
+    }
+
+    if (
+        trimmed.startsWith("* ")
+    ) {
+        return trimmed.substring(2);
+    }
+
+    if (
+        trimmed.startsWith("+ ")
+    ) {
+        return trimmed.substring(2);
+    }
+
+    return null;
+}
+
+
+function getOrderedListItem(line) {
+    const trimmed =
+        line.trim();
+
+    const dot =
+        trimmed.indexOf(".");
+
+    if (
+        dot <= 0 ||
+        dot + 1 >= trimmed.length
+    ) {
+        return null;
+    }
+
+    const number =
+        trimmed.substring(
+            0,
+            dot
+        );
+
+    for (
+        let index = 0;
+        index < number.length;
+        index++
+    ) {
+        const character =
+            number.charAt(index);
+
+        if (
+            character < "0" ||
+            character > "9"
+        ) {
+            return null;
+        }
+    }
+
+    if (
+        trimmed.charAt(dot + 1) !== " "
+    ) {
+        return null;
+    }
+
+    return trimmed.substring(
+        dot + 2
+    );
 }
 
 
@@ -541,19 +929,54 @@ function formatInlineMarkdown(text) {
    ========================================================== */
 
 function isTableSeparator(line) {
-    const cells = line
-        .trim()
-        .replace(/^\|/, "")
-        .replace(/\|$/, "")
-        .split("|");
+    const cells =
+        parseTableRow(line);
 
     if (cells.length === 0) {
         return false;
     }
 
-    return cells.every((cell) => {
-        return /^\s*:?-{3,}:?\s*$/.test(cell);
-    });
+    return cells.every(
+        (cell) => {
+            let value =
+                cell.trim();
+
+            if (
+                value.startsWith(":")
+            ) {
+                value =
+                    value.substring(1);
+            }
+
+            if (
+                value.endsWith(":")
+            ) {
+                value =
+                    value.substring(
+                        0,
+                        value.length - 1
+                    );
+            }
+
+            if (value.length < 3) {
+                return false;
+            }
+
+            for (
+                let index = 0;
+                index < value.length;
+                index++
+            ) {
+                if (
+                    value.charAt(index) !== "-"
+                ) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    );
 }
 
 
@@ -562,9 +985,11 @@ function renderTable(lines) {
         return "";
     }
 
-    const headerCells = parseTableRow(lines[0]);
+    const headerCells =
+        parseTableRow(lines[0]);
 
-    const bodyLines = lines.slice(2);
+    const bodyLines =
+        lines.slice(2);
 
     let html = `
         <div class="table-wrapper">
@@ -573,13 +998,19 @@ function renderTable(lines) {
                     <tr>
     `;
 
-    headerCells.forEach((cell) => {
-        html += `
-            <th>
-                ${formatInlineMarkdown(cell)}
-            </th>
-        `;
-    });
+
+    headerCells.forEach(
+        (cell) => {
+            html += `
+                <th>
+                    ${formatInlineMarkdown(
+                        cell
+                    )}
+                </th>
+            `;
+        }
+    );
+
 
     html += `
                     </tr>
@@ -588,21 +1019,30 @@ function renderTable(lines) {
                 <tbody>
     `;
 
-    bodyLines.forEach((line) => {
-        const cells = parseTableRow(line);
 
-        html += "<tr>";
+    bodyLines.forEach(
+        (line) => {
+            const cells =
+                parseTableRow(line);
 
-        cells.forEach((cell) => {
-            html += `
-                <td>
-                    ${formatInlineMarkdown(cell)}
-                </td>
-            `;
-        });
+            html += "<tr>";
 
-        html += "</tr>";
-    });
+            cells.forEach(
+                (cell) => {
+                    html += `
+                        <td>
+                            ${formatInlineMarkdown(
+                                cell
+                            )}
+                        </td>
+                    `;
+                }
+            );
+
+            html += "</tr>";
+        }
+    );
+
 
     html += `
                 </tbody>
@@ -610,17 +1050,37 @@ function renderTable(lines) {
         </div>
     `;
 
+
     return html;
 }
 
 
 function parseTableRow(line) {
-    return line
-        .trim()
-        .replace(/^\|/, "")
-        .replace(/\|$/, "")
+    let value =
+        line.trim();
+
+    if (
+        value.startsWith("|")
+    ) {
+        value =
+            value.substring(1);
+    }
+
+    if (
+        value.endsWith("|")
+    ) {
+        value =
+            value.substring(
+                0,
+                value.length - 1
+            );
+    }
+
+    return value
         .split("|")
-        .map((cell) => cell.trim());
+        .map(
+            (cell) => cell.trim()
+        );
 }
 
 
@@ -628,26 +1088,39 @@ function parseTableRow(line) {
    Form Submission
    ========================================================== */
 
-chatForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+chatForm.addEventListener(
+    "submit",
+    async (event) => {
+        event.preventDefault();
 
-    const message = messageInput.value.trim();
+        const message =
+            messageInput.value.trim();
 
-    if (!message) {
-        return;
+        if (!message) {
+            return;
+        }
+
+        messages
+            .querySelector(".welcome")
+            ?.remove();
+
+        addUserMessage(message);
+
+        messageInput.value = "";
+
+        messageInput.style.height =
+            "auto";
+
+        const response =
+            await sendMessageToBackend(
+                message
+            );
+
+        addAssistantMessage(
+            response
+        );
     }
-
-    messages.querySelector(".welcome")?.remove();
-
-    addUserMessage(message);
-
-    messageInput.value = "";
-    messageInput.style.height = "auto";
-
-    const response = await sendMessageToBackend(message);
-
-    addAssistantMessage(response);
-});
+);
 
 
 /* ==========================================================
@@ -663,7 +1136,8 @@ function scrollToBottom() {
 
 
 function escapeHtml(text) {
-    const element = document.createElement("div");
+    const element =
+        document.createElement("div");
 
     element.textContent = text;
 
