@@ -66,3 +66,30 @@ def chat(
         )
 
     return response
+
+
+@router.get("/conversations")
+def list_conversations() -> list[dict[str, str | int]]:
+    return conversation_service.list_conversations()
+
+
+@router.get("/conversations/{conversation_id}")
+def get_conversation(
+    conversation_id: int,
+) -> dict:
+    if not conversation_service.conversation_exists(
+        conversation_id
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found.",
+        )
+
+    messages = conversation_service.get_messages(
+        conversation_id
+    )
+
+    return {
+        "conversation_id": conversation_id,
+        "messages": messages,
+    }
