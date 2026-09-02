@@ -140,6 +140,48 @@ messageInput.addEventListener("keydown", (event) => {
 
 
 /* ==========================================================
+   Backend Request
+   ========================================================== */
+
+async function sendMessageToBackend(message) {
+    try {
+        const response = await fetch(
+            "http://127.0.0.1:8000/chat",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                },
+
+                body: JSON.stringify({
+                    message: message,
+                    number_of_results: 3,
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            throw new Error(
+                error.detail || "The server returned an error."
+            );
+        }
+
+        return await response.json();
+
+    } catch (error) {
+        console.error("Chat error:", error);
+
+        return {
+            error: error.message,
+        };
+    }
+}
+
+
+/* ==========================================================
    Add User Message
    ========================================================== */
 
@@ -164,10 +206,54 @@ function addUserMessage(text) {
    Add Assistant Message
    ========================================================== */
 
-function addAssistantMessage() {
+function addAssistantMessage(response) {
     const message = document.createElement("div");
 
     message.className = "message assistant-message";
+
+    if (response.error) {
+        message.innerHTML = `
+            <div class="assistant-label">
+                IT Copilot
+            </div>
+
+            <div class="message-content">
+                <p>
+                    I couldn't connect to the IT Copilot server.
+                </p>
+
+                <p class="error-message">
+                    ${escapeHtml(response.error)}
+                </p>
+            </div>
+        `;
+
+        messages.appendChild(message);
+
+        scrollToBottom();
+
+        return;
+    }
+
+    const sources = response.sources || [];
+
+    const sourceHtml = sources.length > 0
+        ? `
+            <div class="sources">
+                <div class="sources-title">
+                    Sources
+                </div>
+
+                ${sources.map((source) => `
+                    <div class="source">
+                        ${escapeHtml(source.category)}
+                        ·
+                        ${escapeHtml(source.filename)}
+                    </div>
+                `).join("")}
+            </div>
+        `
+        : "";
 
     message.innerHTML = `
         <div class="assistant-label">
@@ -175,35 +261,9 @@ function addAssistantMessage() {
         </div>
 
         <div class="message-content">
-            I can help troubleshoot that.
+            ${formatResponse(response.answer)}
 
-            <br><br>
-
-            First, let's gather some information about
-            the problem.
-
-            <br><br>
-
-            Try running:
-
-            <pre><code>$PSVersionTable</code></pre>
-
-            Then send me the output and I'll help
-            determine the next step.
-
-            <div class="sources">
-                <div class="sources-title">
-                    Sources
-                </div>
-
-                <div class="source">
-                    PowerShell Knowledge Base
-                </div>
-
-                <div class="source">
-                    Microsoft Knowledge Base
-                </div>
-            </div>
+            ${sourceHtml}
         </div>
     `;
 
@@ -214,10 +274,361 @@ function addAssistantMessage() {
 
 
 /* ==========================================================
+   Markdown Rendering
+   ========================================================== */
+
+function formatResponse(text) {
+    if (!text) {
+        return "";
+    }
+
+    const codeBlocks = [];
+
+    let escaped = escapeHtml(text)
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n");
+
+    /*
+     * Extract fenced code blocks before processing the rest
+     * of the Markdown.
+     */
+    escaped = escaped.replace(
+        /```[^\n]*\n([\s\S]*?)```/g,
+        (match, code) => {
+            const index = codeBlocks.length;
+
+            codeBlocks.push(
+                `<pre><code>${code.trim()}</code></pre>`
+            );
+
+            return `@@CODE_BLOCK_${index}@@`;
+        }
+    );
+
+    const lines = escaped.split("\n");
+
+    const output = [];
+
+    let listType = null;
+
+    function closeList() {
+        if (listType === "ul") {
+            output.push("</ul>");
+        }
+
+        if (listType === "ol") {
+            output.push("</ol>");
+        }
+
+        listType = null;
+    }
+
+    for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        const nextLine = lines[index + 1] || "";
+
+        if (!line.trim()) {
+            closeList();
+            continue;
+        }
+
+
+        /* --------------------------------------------------
+           Tables
+           -------------------------------------------------- */
+
+        if (
+            line.includes("|") &&
+            isTableSeparator(nextLine)
+        ) {
+            closeList();
+
+            const tableLines = [
+                line,
+                nextLine,
+            ];
+
+            index += 2;
+
+            while (
+                index < lines.length &&
+                lines[index].includes("|") &&
+                lines[index].trim()
+            ) {
+                tableLines.push(lines[index]);
+
+                index++;
+            }
+
+            index--;
+
+            output.push(
+                renderTable(tableLines)
+            );
+
+            continue;
+        }
+
+
+        /* --------------------------------------------------
+           Headings
+           -------------------------------------------------- */
+
+        const headingMatch = line.match(
+            /^(#{1,6})\s+(.+)$/
+        );
+
+        if (headingMatch) {
+            closeList();
+
+            const level = headingMatch[1].length;
+
+            output.push(
+                `<h${level}>${formatInlineMarkdown(
+                    headingMatch[2]
+                )}</h${level}>`
+            );
+
+            continue;
+        }
+
+
+        /* --------------------------------------------------
+           Horizontal Rule
+           -------------------------------------------------- */
+
+        if (
+            /^(\*{3,}|-{3,}|_{3,})$/.test(
+                line.trim()
+            )
+        ) {
+            closeList();
+
+            output.push("<hr>");
+
+            continue;
+        }
+
+
+        /* --------------------------------------------------
+           Unordered List
+           -------------------------------------------------- */
+
+        const unorderedMatch = line.match(
+            /^\s*[-*+]\s+(.+)$/
+        );
+
+        if (unorderedMatch) {
+            if (listType !== "ul") {
+                closeList();
+
+                output.push("<ul>");
+
+                listType = "ul";
+            }
+
+            output.push(
+                `<li>${formatInlineMarkdown(
+                    unorderedMatch[1]
+                )}</li>`
+            );
+
+            continue;
+        }
+
+
+        /* --------------------------------------------------
+           Ordered List
+           -------------------------------------------------- */
+
+        const orderedMatch = line.match(
+            /^\s*\d+\.\s+(.+)$/
+        );
+
+        if (orderedMatch) {
+            if (listType !== "ol") {
+                closeList();
+
+                output.push("<ol>");
+
+                listType = "ol";
+            }
+
+            output.push(
+                `<li>${formatInlineMarkdown(
+                    orderedMatch[1]
+                )}</li>`
+            );
+
+            continue;
+        }
+
+
+        /* --------------------------------------------------
+           Code Block
+           -------------------------------------------------- */
+
+        if (
+            line.includes("@@CODE_BLOCK_")
+        ) {
+            closeList();
+
+            output.push(line);
+
+            continue;
+        }
+
+
+        /* --------------------------------------------------
+           Regular Paragraph
+           -------------------------------------------------- */
+
+        closeList();
+
+        output.push(
+            `<p>${formatInlineMarkdown(line)}</p>`
+        );
+    }
+
+    closeList();
+
+    let result = output.join("");
+
+    codeBlocks.forEach((codeBlock, index) => {
+        result = result.replace(
+            `@@CODE_BLOCK_${index}@@`,
+            codeBlock
+        );
+    });
+
+    return result;
+}
+
+
+/* ==========================================================
+   Inline Markdown
+   ========================================================== */
+
+function formatInlineMarkdown(text) {
+    let result = text;
+
+    result = result.replace(
+        /`([^`]+)`/g,
+        "<code>$1</code>"
+    );
+
+    result = result.replace(
+        /\*\*(.+?)\*\*/g,
+        "<strong>$1</strong>"
+    );
+
+    result = result.replace(
+        /(?<!\*)\*([^*]+)\*(?!\*)/g,
+        "<em>$1</em>"
+    );
+
+    result = result.replace(
+        /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+
+    return result;
+}
+
+
+/* ==========================================================
+   Markdown Tables
+   ========================================================== */
+
+function isTableSeparator(line) {
+    const cells = line
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|");
+
+    if (cells.length === 0) {
+        return false;
+    }
+
+    return cells.every((cell) => {
+        return /^\s*:?-{3,}:?\s*$/.test(cell);
+    });
+}
+
+
+function renderTable(lines) {
+    if (lines.length < 2) {
+        return "";
+    }
+
+    const headerCells = parseTableRow(lines[0]);
+
+    const bodyLines = lines.slice(2);
+
+    let html = `
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+    `;
+
+    headerCells.forEach((cell) => {
+        html += `
+            <th>
+                ${formatInlineMarkdown(cell)}
+            </th>
+        `;
+    });
+
+    html += `
+                    </tr>
+                </thead>
+
+                <tbody>
+    `;
+
+    bodyLines.forEach((line) => {
+        const cells = parseTableRow(line);
+
+        html += "<tr>";
+
+        cells.forEach((cell) => {
+            html += `
+                <td>
+                    ${formatInlineMarkdown(cell)}
+                </td>
+            `;
+        });
+
+        html += "</tr>";
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    return html;
+}
+
+
+function parseTableRow(line) {
+    return line
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((cell) => cell.trim());
+}
+
+
+/* ==========================================================
    Form Submission
    ========================================================== */
 
-chatForm.addEventListener("submit", (event) => {
+chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const message = messageInput.value.trim();
@@ -233,9 +644,9 @@ chatForm.addEventListener("submit", (event) => {
     messageInput.value = "";
     messageInput.style.height = "auto";
 
-    setTimeout(() => {
-        addAssistantMessage();
-    }, 500);
+    const response = await sendMessageToBackend(message);
+
+    addAssistantMessage(response);
 });
 
 

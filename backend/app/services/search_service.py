@@ -7,9 +7,11 @@ class SearchService:
         self,
         embedding_service: EmbeddingService,
         vector_store: VectorStore,
+        distance_threshold: float = 0.9,
     ) -> None:
         self.embedding_service = embedding_service
         self.vector_store = vector_store
+        self.distance_threshold = distance_threshold
 
     def search(
         self,
@@ -37,6 +39,9 @@ class SearchService:
             metadatas,
             distances,
         ):
+            if distance > self.distance_threshold:
+                continue
+
             search_results.append(
                 {
                     "text": document,

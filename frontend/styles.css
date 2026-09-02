@@ -767,3 +767,8 @@ button {
         font-size: 11px;
     }
 }
+
+.error-message {
+    color: var(--danger);
+    font-size: 12px;
+}

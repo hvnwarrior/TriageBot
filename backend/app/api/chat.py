@@ -41,7 +41,7 @@ class ChatRequest(BaseModel):
     number_of_results: int = 5
 
 
-@router.post("/test")
+@router.post("")
 def test_chat(
     request: ChatRequest,
 ) -> dict:
