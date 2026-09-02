@@ -1,4 +1,5 @@
 from app.services.anthropic_service import AnthropicService
+from app.services.conversation_service import ConversationService
 from app.services.search_service import SearchService
 
 
@@ -7,19 +8,34 @@ class ChatService:
         self,
         search_service: SearchService,
         anthropic_service: AnthropicService,
+        conversation_service: ConversationService,
     ) -> None:
         self.search_service = search_service
         self.anthropic_service = anthropic_service
-
-        self.conversation_history: list[dict[str, str]] = []
+        self.conversation_service = conversation_service
 
     def chat(
         self,
         message: str,
+        conversation_id: int | None = None,
         number_of_results: int = 5,
     ) -> dict:
         if not message.strip():
             raise ValueError("Message cannot be empty.")
+
+        if conversation_id is None:
+            conversation_id = self.conversation_service.create_conversation(
+                title=self._create_title(message),
+            )
+
+        elif not self.conversation_service.conversation_exists(
+            conversation_id
+        ):
+            raise ValueError("Conversation not found.")
+
+        previous_messages = self.conversation_service.get_messages(
+            conversation_id
+        )
 
         search_results = self.search_service.search(
             query=message,
@@ -28,32 +44,32 @@ class ChatService:
 
         context = self._build_context(search_results)
 
-        self.conversation_history.append(
-            {
-                "role": "user",
-                "content": message,
-            }
+        self.conversation_service.add_message(
+            conversation_id=conversation_id,
+            role="user",
+            content=message,
         )
 
         prompt = self._build_prompt(
             message=message,
             context=context,
+            history=previous_messages,
         )
 
         answer = self.anthropic_service.generate_response(
             prompt=prompt,
         )
 
-        self.conversation_history.append(
-            {
-                "role": "assistant",
-                "content": answer,
-            }
+        self.conversation_service.add_message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=answer,
         )
 
         sources = self._build_sources(search_results)
 
         return {
+            "conversation_id": conversation_id,
             "answer": answer,
             "sources": sources,
         }
@@ -62,8 +78,9 @@ class ChatService:
         self,
         message: str,
         context: str,
+        history: list[dict[str, str]],
     ) -> str:
-        history = self._build_history()
+        conversation_history = self._build_history(history)
 
         return f"""
 You are IT Copilot, a private AI assistant for IT troubleshooting.
@@ -77,7 +94,7 @@ Knowledge Base Context:
 
 Previous Conversation:
 ------------------------
-{history}
+{conversation_history}
 ------------------------
 
 Current User Question:
@@ -96,15 +113,16 @@ Instructions:
 - Ask a focused follow-up question when additional information is needed.
 """.strip()
 
-    def _build_history(self) -> str:
-        if len(self.conversation_history) <= 1:
+    @staticmethod
+    def _build_history(
+        history: list[dict[str, str]],
+    ) -> str:
+        if not history:
             return "No previous conversation."
-
-        previous_messages = self.conversation_history[:-1]
 
         history_parts = []
 
-        for message in previous_messages:
+        for message in history:
             role = message["role"].capitalize()
 
             history_parts.append(
@@ -165,3 +183,14 @@ Content:
             )
 
         return sources
+
+    @staticmethod
+    def _create_title(
+        message: str,
+    ) -> str:
+        title = " ".join(message.split())
+
+        if len(title) <= 50:
+            return title
+
+        return f"{title[:47]}..."
