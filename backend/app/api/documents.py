@@ -53,7 +53,7 @@ def list_documents() -> dict[str, list[str]]:
 def search_documents(
     query: str,
     number_of_results: int = 5,
-) -> dict:
+) -> list[dict[str, str | int | float]]:
     try:
         results = search_service.search(
             query=query,

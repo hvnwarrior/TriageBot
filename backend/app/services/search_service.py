@@ -15,13 +15,36 @@ class SearchService:
         self,
         query: str,
         number_of_results: int = 5,
-    ) -> dict:
+    ) -> list[dict[str, str | int | float]]:
         if not query.strip():
             raise ValueError("Search query cannot be empty.")
 
         query_embedding = self.embedding_service.create_embedding(query)
 
-        return self.vector_store.search(
+        results = self.vector_store.search(
             embedding=query_embedding,
             number_of_results=number_of_results,
         )
+
+        documents = results.get("documents", [[]])[0]
+        metadatas = results.get("metadatas", [[]])[0]
+        distances = results.get("distances", [[]])[0]
+
+        search_results = []
+
+        for document, metadata, distance in zip(
+            documents,
+            metadatas,
+            distances,
+        ):
+            search_results.append(
+                {
+                    "text": document,
+                    "category": metadata["category"],
+                    "filename": metadata["filename"],
+                    "chunk_index": metadata["chunk_index"],
+                    "distance": distance,
+                }
+            )
+
+        return search_results
