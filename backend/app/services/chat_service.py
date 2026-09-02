@@ -11,6 +11,8 @@ class ChatService:
         self.search_service = search_service
         self.anthropic_service = anthropic_service
 
+        self.conversation_history: list[dict[str, str]] = []
+
     def chat(
         self,
         message: str,
@@ -26,6 +28,13 @@ class ChatService:
 
         context = self._build_context(search_results)
 
+        self.conversation_history.append(
+            {
+                "role": "user",
+                "content": message,
+            }
+        )
+
         prompt = self._build_prompt(
             message=message,
             context=context,
@@ -35,12 +44,74 @@ class ChatService:
             prompt=prompt,
         )
 
+        self.conversation_history.append(
+            {
+                "role": "assistant",
+                "content": answer,
+            }
+        )
+
         sources = self._build_sources(search_results)
 
         return {
             "answer": answer,
             "sources": sources,
         }
+
+    def _build_prompt(
+        self,
+        message: str,
+        context: str,
+    ) -> str:
+        history = self._build_history()
+
+        return f"""
+You are IT Copilot, a private AI assistant for IT troubleshooting.
+
+Use the provided knowledge base context to help answer the user's question.
+
+Knowledge Base Context:
+------------------------
+{context}
+------------------------
+
+Previous Conversation:
+------------------------
+{history}
+------------------------
+
+Current User Question:
+{message}
+
+Instructions:
+- Give a clear and practical IT troubleshooting answer.
+- Use the knowledge base when it is relevant.
+- Use previous conversation messages to understand context.
+- Do not claim that the knowledge base says something it does not say.
+- If the knowledge base does not contain enough information, clearly say so.
+- Do not invent technical facts or sources.
+- When recommending commands, explain what they do.
+- If the user provides an error message, use it to narrow down the troubleshooting steps.
+- Avoid repeating information the user has already received unless it is necessary.
+- Ask a focused follow-up question when additional information is needed.
+""".strip()
+
+    def _build_history(self) -> str:
+        if len(self.conversation_history) <= 1:
+            return "No previous conversation."
+
+        previous_messages = self.conversation_history[:-1]
+
+        history_parts = []
+
+        for message in previous_messages:
+            role = message["role"].capitalize()
+
+            history_parts.append(
+                f"{role}: {message['content']}"
+            )
+
+        return "\n\n".join(history_parts)
 
     @staticmethod
     def _build_context(
@@ -51,7 +122,10 @@ class ChatService:
 
         context_parts = []
 
-        for index, result in enumerate(search_results, start=1):
+        for index, result in enumerate(
+            search_results,
+            start=1,
+        ):
             context_parts.append(
                 f"""
 Source {index}
@@ -63,34 +137,6 @@ Content:
             )
 
         return "\n\n".join(context_parts)
-
-    @staticmethod
-    def _build_prompt(
-        message: str,
-        context: str,
-    ) -> str:
-        return f"""
-You are IT Copilot, a private AI assistant for IT troubleshooting.
-
-Use the provided knowledge base context to help answer the user's question.
-
-Knowledge Base Context:
-------------------------
-{context}
-------------------------
-
-User Question:
-{message}
-
-Instructions:
-- Give a clear and practical IT troubleshooting answer.
-- Prefer information from the knowledge base when it is relevant.
-- Do not claim that the knowledge base says something it does not say.
-- If the available knowledge is insufficient, clearly say so.
-- Do not invent technical facts or sources.
-- When recommending commands, explain what they do.
-- Use concise steps when troubleshooting.
-""".strip()
 
     @staticmethod
     def _build_sources(
