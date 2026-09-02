@@ -7,3 +7,5 @@ venv/
 logs/
 docs/cache/*
 !docs/cache/.gitkeep
+# ChromaDB vector store
+data/vector_store/
