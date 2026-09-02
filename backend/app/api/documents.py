@@ -21,3 +21,11 @@ def list_documents() -> dict[str, list[str]]:
     return {
         "directories": document_service.list_directories(),
     }
+
+
+@router.get("/{category}")
+def list_category_documents(category: str) -> dict[str, list[str] | str]:
+    return {
+        "category": category,
+        "files": document_service.list_files(category),
+    }
