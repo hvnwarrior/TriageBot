@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     uploads_directory: Path = UPLOADS_DIR
     cache_directory: Path = CACHE_DIR
     data_directory: Path = DATA_DIR
+    vector_store_directory: Path = DATA_DIR / "vector_store"
 
 
     # ==========================================================

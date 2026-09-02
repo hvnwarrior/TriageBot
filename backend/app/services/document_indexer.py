@@ -3,6 +3,7 @@ from pathlib import Path
 from app.services.document_chunker import DocumentChunker
 from app.services.document_extractor import DocumentExtractor
 from app.services.embedding_service import EmbeddingService
+from app.services.vector_store import VectorStore
 
 
 class DocumentIndexer:
@@ -11,10 +12,12 @@ class DocumentIndexer:
         document_extractor: DocumentExtractor,
         document_chunker: DocumentChunker,
         embedding_service: EmbeddingService,
+        vector_store: VectorStore,
     ) -> None:
         self.document_extractor = document_extractor
         self.document_chunker = document_chunker
         self.embedding_service = embedding_service
+        self.vector_store = vector_store
 
     def index_document(
         self,
@@ -36,5 +39,7 @@ class DocumentIndexer:
                     "embedding": embedding,
                 }
             )
+
+        self.vector_store.add_chunks(indexed_chunks)
 
         return indexed_chunks

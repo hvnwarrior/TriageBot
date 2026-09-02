@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException
 
+from pathlib import Path
+
 from app.config import get_settings
 from app.services.document_chunker import DocumentChunker
 from app.services.document_extractor import DocumentExtractor
 from app.services.document_service import DocumentService
 from app.services.embedding_service import EmbeddingService
 from app.services.document_indexer import DocumentIndexer
+from app.services.vector_store import VectorStore
 
 
 router = APIRouter(
@@ -26,6 +29,9 @@ document_indexer = DocumentIndexer(
     document_extractor=document_extractor,
     document_chunker=document_chunker,
     embedding_service=embedding_service,
+    vector_store=VectorStore(
+        storage_directory=settings.vector_store_directory,
+    )
 )
 
 
