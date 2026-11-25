@@ -1,0 +1,2 @@
+# Smoke tests: run with pytest from the backend/ directory.
+pytest==8.3.4
