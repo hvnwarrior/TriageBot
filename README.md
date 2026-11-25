@@ -84,7 +84,7 @@ infrastructure you own — no third-party SaaS in the data path.
 With Docker (recommended):
 
 ```bash
-cp .env.example .env          # set TRIAGEBOT_ANTHROPIC_API_KEY
+cp .env.example .env          # key optional: run 'ant auth login' instead
 docker compose up
 # frontend on http://localhost:8080, API on http://localhost:8000/docs
 ```
@@ -92,7 +92,7 @@ docker compose up
 Without Docker:
 
 ```bash
-cp .env.example .env          # set TRIAGEBOT_ANTHROPIC_API_KEY
+cp .env.example .env          # key optional: run 'ant auth login' instead
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload

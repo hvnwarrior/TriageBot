@@ -7,8 +7,14 @@ class AnthropicService:
     def __init__(self) -> None:
         settings = get_settings()
 
-        self.client = Anthropic(
-            api_key=settings.anthropic_api_key,
+        # Prefer an explicit key from settings; otherwise fall back to
+        # the local sign-in stored by the `ant` CLI (OAuth credentials
+        # in ~/.config/anthropic). Keeps the app at zero stored API
+        # keys when signed in, and works unchanged with a key too.
+        self.client = (
+            Anthropic(api_key=settings.anthropic_api_key)
+            if settings.anthropic_api_key
+            else Anthropic()
         )
 
         self.model = settings.chat_model
