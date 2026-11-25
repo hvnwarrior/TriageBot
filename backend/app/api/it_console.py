@@ -9,6 +9,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.dependencies import get_services
+from app.services.security_escalation_service import (
+    SecurityIncident,
+)
 from app.services.takeover_service import MODE_ASSISTANT, MODE_JOINED, MODE_TAKEOVER
 
 
@@ -244,3 +247,123 @@ def get_audit_tail(
     )
 
     return {"events": events}
+
+
+class IncidentAcknowledgeRequest(BaseModel):
+    responder: str
+
+
+class IncidentCloseRequest(BaseModel):
+    responder: str
+
+
+def _incident_to_dict(incident: SecurityIncident) -> dict:
+    return {
+        "ticket_id": incident.ticket_id,
+        "conversation_id": incident.conversation_id,
+        "reporter": incident.reporter,
+        "summary": incident.summary,
+        "status": incident.status,
+        "paged": list(incident.paged),
+        "acknowledged_by": incident.acknowledged_by,
+        "acknowledged_at": incident.acknowledged_at,
+        "re_escalation_count": incident.re_escalation_count,
+        "created_at": incident.created_at,
+    }
+
+
+@router.get("/security/incidents")
+def list_security_incidents() -> dict:
+    """Open (non-closed) security incidents, with paging/ack state."""
+    assistant, _ = get_services()
+    escalation = assistant.security_escalation_service
+
+    if escalation is None:
+        raise HTTPException(status_code=503, detail="Security escalation not configured.")
+
+    return {
+        "incidents": [
+            _incident_to_dict(incident)
+            for incident in escalation.list_open()
+        ]
+    }
+
+
+@router.post("/security/incidents/{ticket_id}/acknowledge")
+def acknowledge_incident(ticket_id: int, request: IncidentAcknowledgeRequest) -> dict:
+    """A named responder takes ownership of a security incident."""
+    assistant, _ = get_services()
+    escalation = assistant.security_escalation_service
+
+    if escalation is None:
+        raise HTTPException(status_code=503, detail="Security escalation not configured.")
+
+    try:
+        incident = escalation.acknowledge(ticket_id, request.responder)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+
+    assistant.audit_service.record(
+        event_type="security_acknowledged",
+        actor=request.responder,
+        ticket_id=ticket_id,
+        conversation_id=incident.conversation_id,
+        details={"after_re_escalation": incident.re_escalation_count > 0},
+    )
+
+    return {"incident": _incident_to_dict(incident)}
+
+
+@router.post("/security/incidents/{ticket_id}/close")
+def close_incident(ticket_id: int, request: IncidentCloseRequest) -> dict:
+    """Close a security incident (after containment/resolution)."""
+    assistant, _ = get_services()
+    escalation = assistant.security_escalation_service
+
+    if escalation is None:
+        raise HTTPException(status_code=503, detail="Security escalation not configured.")
+
+    try:
+        incident = escalation.close(ticket_id, request.closed_by if hasattr(request, 'closed_by') else request.responder)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+
+    assistant.audit_service.record(
+        event_type="security_incident_closed",
+        actor=request.responder,
+        ticket_id=ticket_id,
+        conversation_id=incident.conversation_id,
+    )
+
+    return {"incident": _incident_to_dict(incident)}
+
+
+@router.post("/security/sweep")
+def sweep_security_incidents() -> dict:
+    """Manually trigger the unacknowledged-incident watchdog.
+
+    Useful for demos and for cron-less deployments; the Slack adapter
+    runs this on a timer in production setups.
+    """
+    assistant, _ = get_services()
+    escalation = assistant.security_escalation_service
+
+    if escalation is None:
+        raise HTTPException(status_code=503, detail="Security escalation not configured.")
+
+    re_escalated = escalation.sweep_unacknowledged()
+
+    for incident in re_escalated:
+        assistant.audit_service.record(
+            event_type="security_re_escalated",
+            actor="watchdog",
+            ticket_id=incident.ticket_id,
+            conversation_id=incident.conversation_id,
+            details={"re_escalation_count": incident.re_escalation_count},
+        )
+
+    return {
+        "re_escalated": [
+            _incident_to_dict(incident) for incident in re_escalated
+        ]
+    }

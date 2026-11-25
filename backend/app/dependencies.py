@@ -13,6 +13,12 @@ from app.services.audit_service import AuditLogService
 from app.services.conversation_service import ConversationService
 from app.services.embedding_service import EmbeddingService
 from app.services.search_service import SearchService
+from app.services.security_escalation_service import (
+    ConsoleNotificationChannel,
+    PagePlan,
+    PageTarget,
+    SecurityEscalationService,
+)
 from app.services.support_assistant_service import SupportAssistantService
 from app.services.takeover_service import TakeoverService
 from app.services.ticket_service import TicketService
@@ -26,6 +32,19 @@ def initialize_services(app: FastAPI) -> tuple:
         return (
             app.state.support_assistant_service,
             app.state.takeover_service,
+        )
+
+    def _build_page_plan() -> PagePlan:
+        """Named responders from settings; rebuilt per incident so
+        config changes apply without restarts."""
+
+        settings = get_settings()
+
+        return PagePlan(
+            targets=[
+                PageTarget(handle=handle)
+                for handle in settings.security_responder_list
+            ],
         )
 
     settings = get_settings()
@@ -52,6 +71,11 @@ def initialize_services(app: FastAPI) -> tuple:
         log_path=settings.audit_log_path,
     )
     takeover_service = TakeoverService()
+    security_escalation_service = SecurityEscalationService(
+        notification_channel=ConsoleNotificationChannel(),
+        plan_provider=_build_page_plan,
+        ack_deadline_minutes=settings.security_ack_deadline_minutes,
+    )
 
     support_assistant_service = SupportAssistantService(
         triage_service=triage_service,
@@ -61,10 +85,12 @@ def initialize_services(app: FastAPI) -> tuple:
         ticket_service=ticket_service,
         audit_service=audit_service,
         takeover_service=takeover_service,
+        security_escalation_service=security_escalation_service,
     )
 
     app.state.support_assistant_service = support_assistant_service
     app.state.takeover_service = takeover_service
+    app.state.security_escalation_service = security_escalation_service
     app.state.triagebot_initialized = True
 
     return support_assistant_service, takeover_service

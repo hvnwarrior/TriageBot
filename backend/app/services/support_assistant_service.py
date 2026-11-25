@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.services.audit_service import AuditLogService
 from app.services.anthropic_service import AnthropicService
 from app.services.search_service import SearchService
+from app.services.security_escalation_service import SecurityEscalationService
 from app.services.takeover_service import MODE_TAKEOVER, TakeoverService
 from app.services.ticket_service import (
     SEVERITY_CRITICAL,
@@ -60,6 +61,7 @@ class SupportAssistantService:
         ticket_service: TicketService,
         audit_service: AuditLogService,
         takeover_service: TakeoverService,
+        security_escalation_service: SecurityEscalationService | None = None,
     ) -> None:
         self.triage_service = triage_service
         self.search_service = search_service
@@ -68,6 +70,7 @@ class SupportAssistantService:
         self.ticket_service = ticket_service
         self.audit_service = audit_service
         self.takeover_service = takeover_service
+        self.security_escalation_service = security_escalation_service
 
         settings = get_settings()
         self.max_clarifying_questions = settings.max_clarifying_questions
@@ -197,6 +200,28 @@ class SupportAssistantService:
             ticket_id=ticket_id,
             details={"reason": triage.reason},
         )
+
+        # Page named humans. A channel post alone is not an escalation.
+        if self.security_escalation_service is not None:
+            incident = self.security_escalation_service.escalate(
+                ticket_id=ticket_id,
+                conversation_id=conversation_id,
+                reporter=employee_name or "employee",
+                summary=message,
+            )
+
+            self.audit_service.record(
+                event_type="security_paged",
+                actor="assistant",
+                conversation_id=conversation_id,
+                ticket_id=ticket_id,
+                details={
+                    "paged": incident.paged,
+                    "ack_deadline_minutes": (
+                        self.security_escalation_service.ack_deadline_minutes
+                    ),
+                },
+            )
 
         reply = (
             "This looks like a possible security issue, so I've escalated "

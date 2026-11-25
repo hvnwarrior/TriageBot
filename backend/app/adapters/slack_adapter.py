@@ -60,6 +60,9 @@ def main() -> None:
     # Slack thread_ts <-> assistant conversation_id mapping.
     thread_map: dict[tuple[str, str], int] = {}
 
+    # A notified incident's ticket_id -> report link, used for Ack buttons.
+    incident_links: dict[int, str] = {}
+
     TIER_ATTACHMENTS = {
         "security": {
             "color": "#ff6b6b",
@@ -141,15 +144,55 @@ def main() -> None:
             attachments=attachments,
         )
 
-        # Security tier: also ping the security channel, P1 style.
-        if tier == "security" and security_channel_id:
-            slack_app.client.chat_postMessage(
-                channel=security_channel_id,
-                text=(
-                    ":rotating_light: *Possible security incident* from "
-                    f"<@{user_name}>: {result.get('reply', '')}"
-                ),
-            )
+        # Security tier: page named responders via DM with an Ack button,
+        # and broadcast to the security channel. A channel post alone is
+        # not an escalation.
+        if tier == "security" and assistant.security_escalation_service:
+            ticket_id = result.get("ticket_id")
+            permalink = slack_app.client.chat_getPermalink(
+                channel=channel_id, message_ts=thread_ts or ""
+            ).get("permalink")
+
+            ack_blocks = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": (
+                            ":rotating_light: *Security incident ticket "
+                            f"#{ticket_id}* reported by <@{user_name}>.\n"
+                            f"<{permalink}|View the report> — acknowledge "
+                            "to take ownership."
+                        ),
+                    },
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "action_id": "security_ack",
+                            "text": {"type": "plain_text", "text": "Acknowledge"},
+                            "style": "primary",
+                            "value": str(ticket_id),
+                        }
+                    ],
+                },
+            ]
+
+            incident_links[ticket_id] = permalink
+
+            for responder in settings.security_responder_list:
+                slack_app.client.chat_postMessage(
+                    channel=responder, blocks=ack_blocks, text="Security incident"
+                )
+
+            if security_channel_id:
+                slack_app.client.chat_postMessage(
+                    channel=security_channel_id,
+                    blocks=ack_blocks,
+                    text="Security incident",
+                )
 
     @slack_app.event("app_mention")
     def on_app_mention(event, say) -> None:
@@ -191,6 +234,29 @@ def main() -> None:
             channel_id=event["channel"],
             thread_ts=event.get("thread_ts") or event.get("ts"),
             user_name=event.get("user", "unknown-user"),
+        )
+
+    @slack_app.action("security_ack")
+    def on_security_ack(ack, body, respond) -> None:
+        ack()
+
+        ticket_id = int(body["actions"][0]["value"])
+        responder = body["user"]["id"]
+
+        incident = assistant.security_escalation_service.acknowledge(
+            ticket_id, responder
+        )
+
+        assistant.audit_service.record(
+            event_type="security_acknowledged",
+            actor=responder,
+            ticket_id=ticket_id,
+            conversation_id=incident.conversation_id,
+        )
+
+        respond(
+            f"Acknowledged by <@{responder}> at "
+            f"{incident.acknowledged_at}. Ownership recorded in the audit log."
         )
 
     print("Starting TriageBot Slack adapter (Socket Mode)...")

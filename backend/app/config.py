@@ -55,6 +55,17 @@ class Settings(BaseSettings):
     auto_ticket_on_resolution: bool = True
 
     # ==========================================================
+    # Security escalation
+    # ==========================================================
+    # Named humans (Slack user IDs, emails) paged directly for
+    # security incidents. A channel post alone is not an escalation.
+    security_responders: str = ""
+
+    # A security incident must be acknowledged by a responder within
+    # this window, or the watchdog re-escalates it, loudly.
+    security_ack_deadline_minutes: int = 15
+
+    # ==========================================================
     # AI
     # ==========================================================
     # NOTE: never hardcode API keys here. Put TRIAGEBOT_ANTHROPIC_API_KEY
@@ -70,6 +81,15 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @property
+    def security_responder_list(self) -> list[str]:
+        """Comma-separated responder handles, as a clean list."""
+        return [
+            handle.strip()
+            for handle in self.security_responders.split(",")
+            if handle.strip()
+        ]
 
 
 @lru_cache
