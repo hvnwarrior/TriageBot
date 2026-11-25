@@ -20,7 +20,7 @@ from app.services.triage_service import TriageService
 from app.services.vector_store import VectorStore
 
 
-def _initialize(app: FastAPI) -> tuple:
+def initialize_services(app: FastAPI) -> tuple:
     """Build (or fetch from app.state) all assistant services."""
     if getattr(app.state, "it_copilot_initialized", False):
         return (
@@ -74,7 +74,7 @@ def get_services() -> tuple:
     """Return (SupportAssistantService, TakeoverService)."""
     from app.main import app
 
-    return _initialize(app)
+    return initialize_services(app)
 
 
 def get_support_assistant_service() -> SupportAssistantService:
