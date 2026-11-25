@@ -1,5 +1,5 @@
 /*
- * IT Copilot frontend.
+ * TriageBot frontend.
  *
  * Talks to the support-assistant API (POST /assistant/message).
  * The UI shows the triage tier and any ticket created, so the
@@ -188,7 +188,7 @@ function addAssistantMessage(response) {
 
     if (response.error) {
         message.innerHTML = `
-            <div class="assistant-label">IT Copilot</div>
+            <div class="assistant-label">TriageBot</div>
             <div class="message-content">
                 <p>I couldn't reach the assistant server.</p>
                 <p class="error-message">${escapeHtml(response.error)}</p>
@@ -209,7 +209,7 @@ function addAssistantMessage(response) {
         : "<p>No reply from the assistant.</p>";
 
     message.innerHTML = `
-        <div class="assistant-label">IT Copilot</div>
+        <div class="assistant-label">TriageBot</div>
         <div class="message-content">
             ${body}
             ${badgeHtml ? `<div class="badges">${badgeHtml}</div>` : ""}

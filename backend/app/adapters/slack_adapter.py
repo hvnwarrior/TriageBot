@@ -1,4 +1,4 @@
-"""Slack adapter: connects the IT Copilot assistant to a Slack workspace.
+"""Slack adapter: connects the TriageBot assistant to a Slack workspace.
 
 Employees @mention the bot (or DM it) in Slack; the adapter forwards the
 message to the same support-assistant service the web demo uses, and
@@ -193,7 +193,7 @@ def main() -> None:
             user_name=event.get("user", "unknown-user"),
         )
 
-    print("Starting IT Copilot Slack adapter (Socket Mode)...")
+    print("Starting TriageBot Slack adapter (Socket Mode)...")
     SocketModeHandler(slack_app, slack_app_token).start()
 
 

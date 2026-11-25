@@ -7,7 +7,7 @@ class VectorStore:
     def __init__(
         self,
         storage_directory: Path,
-        collection_name: str = "it_copilot",
+        collection_name: str = "triagebot",
     ) -> None:
         self.client = chromadb.PersistentClient(
             path=str(storage_directory)

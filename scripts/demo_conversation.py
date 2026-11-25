@@ -1,4 +1,4 @@
-"""End-to-end demo conversation for IT Copilot.
+"""End-to-end demo conversation for TriageBot.
 
 Runs the full support-assistant flow without needing the web UI or a
 Slack workspace: scripted employee messages go through triage, the
@@ -56,7 +56,7 @@ def main() -> None:
     settings = get_settings()
 
     print("=" * 62)
-    print("IT Copilot - end-to-end demo")
+    print("TriageBot - end-to-end demo")
     print(f"Database: {settings.database_path}")
     print(f"Audit log: {settings.audit_log_path}")
     print("=" * 62)

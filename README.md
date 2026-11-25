@@ -1,4 +1,4 @@
-# IT Copilot
+# TriageBot
 
 A private, AI-powered IT assistant for small teams: employees get help in
 the channel they already use, IT gets documented tickets and a full audit
@@ -77,7 +77,7 @@ infrastructure you own — no third-party SaaS in the data path.
 With Docker (recommended):
 
 ```bash
-cp .env.example .env          # set IT_COPILOT_ANTHROPIC_API_KEY
+cp .env.example .env          # set TRIAGEBOT_ANTHROPIC_API_KEY
 docker compose up
 # frontend on http://localhost:8080, API on http://localhost:8000/docs
 ```
@@ -85,7 +85,7 @@ docker compose up
 Without Docker:
 
 ```bash
-cp .env.example .env          # set IT_COPILOT_ANTHROPIC_API_KEY
+cp .env.example .env          # set TRIAGEBOT_ANTHROPIC_API_KEY
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload

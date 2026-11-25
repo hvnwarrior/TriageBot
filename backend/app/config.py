@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # ==========================================================
     # Application
     # ==========================================================
-    app_name: str = "IT Copilot"
+    app_name: str = "TriageBot"
     app_version: str = "0.2.0"
     app_description: str = "AI-powered IT assistant for employee self-service troubleshooting, ticketing, and audit."
 
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     cache_directory: Path = CACHE_DIR
     data_directory: Path = DATA_DIR
     vector_store_directory: Path = DATA_DIR / "vector_store"
-    database_path: Path = DATA_DIR / "it_copilot.db"
+    database_path: Path = DATA_DIR / "triagebot.db"
     audit_log_path: Path = DATA_DIR / "audit_log.jsonl"
 
     # ==========================================================
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # ==========================================================
     # AI
     # ==========================================================
-    # NOTE: never hardcode API keys here. Put IT_COPILOT_ANTHROPIC_API_KEY
+    # NOTE: never hardcode API keys here. Put TRIAGEBOT_ANTHROPIC_API_KEY
     # in a .env file (see .env.example). The .env file is gitignored.
     anthropic_api_key: str = ""
     chat_model: str = "claude-sonnet-5"
@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=PROJECT_DIR / ".env",
         env_file_encoding="utf-8",
-        env_prefix="IT_COPILOT_",
+        env_prefix="TRIAGEBOT_",
         case_sensitive=False,
         extra="ignore",
     )

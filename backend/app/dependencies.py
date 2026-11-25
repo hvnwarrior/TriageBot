@@ -22,7 +22,7 @@ from app.services.vector_store import VectorStore
 
 def initialize_services(app: FastAPI) -> tuple:
     """Build (or fetch from app.state) all assistant services."""
-    if getattr(app.state, "it_copilot_initialized", False):
+    if getattr(app.state, "triagebot_initialized", False):
         return (
             app.state.support_assistant_service,
             app.state.takeover_service,
@@ -65,7 +65,7 @@ def initialize_services(app: FastAPI) -> tuple:
 
     app.state.support_assistant_service = support_assistant_service
     app.state.takeover_service = takeover_service
-    app.state.it_copilot_initialized = True
+    app.state.triagebot_initialized = True
 
     return support_assistant_service, takeover_service
 

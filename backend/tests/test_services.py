@@ -1,4 +1,4 @@
-"""Smoke tests for the IT Copilot core services.
+"""Smoke tests for the TriageBot core services.
 
 Deterministic tests only — no LLM calls. They validate the behaviors
 that define the project:
@@ -42,7 +42,7 @@ from app.services.triage_service import (
 @pytest.fixture
 def tmp_dirs(tmp_path: Path) -> tuple[Path, Path]:
     return (
-        tmp_path / "it_copilot_test.db",
+        tmp_path / "triagebot_test.db",
         tmp_path / "audit_test.jsonl",
     )
 
