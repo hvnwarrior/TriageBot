@@ -20,13 +20,14 @@ DATA_DIR = PROJECT_DIR / "data"
 SCRIPTS_DIR = PROJECT_DIR / "scripts"
 DOCKER_DIR = PROJECT_DIR / "docker"
 
+
 class Settings(BaseSettings):
     # ==========================================================
     # Application
     # ==========================================================
     app_name: str = "IT Copilot"
-    app_version: str = "0.1.0"
-    app_description: str = "Private AI-powered IT assistant."
+    app_version: str = "0.2.0"
+    app_description: str = "AI-powered IT assistant for employee self-service troubleshooting, ticketing, and audit."
 
     # ==========================================================
     # Environment
@@ -43,12 +44,22 @@ class Settings(BaseSettings):
     cache_directory: Path = CACHE_DIR
     data_directory: Path = DATA_DIR
     vector_store_directory: Path = DATA_DIR / "vector_store"
-
+    database_path: Path = DATA_DIR / "it_copilot.db"
+    audit_log_path: Path = DATA_DIR / "audit_log.jsonl"
 
     # ==========================================================
-    # AI (Future)
+    # Assistant
     # ==========================================================
-    anthropic_api_key: str = "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"
+    escalation_confidence_threshold: float = 0.6
+    max_clarifying_questions: int = 3
+    auto_ticket_on_resolution: bool = True
+
+    # ==========================================================
+    # AI
+    # ==========================================================
+    # NOTE: never hardcode API keys here. Put IT_COPILOT_ANTHROPIC_API_KEY
+    # in a .env file (see .env.example). The .env file is gitignored.
+    anthropic_api_key: str = ""
     chat_model: str = "claude-sonnet-5"
     embedding_model: str = "local"
 
