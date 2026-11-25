@@ -37,10 +37,16 @@ SECURITY_KEYWORDS = (
     "compromised",
     "hacked",
     "data breach",
+    "lost my laptop",
+    "lost my phone",
     "lost laptop",
     "lost phone",
+    "laptop was stolen",
+    "phone was stolen",
     "stolen laptop",
     "stolen phone",
+    "laptop was lost",
+    "phone was lost",
 )
 
 
