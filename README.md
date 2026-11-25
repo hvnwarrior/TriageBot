@@ -16,11 +16,17 @@ join, or take over at any point.
 **Flow:** employee message -> triage -> knowledge-base retrieval -> LLM
 response -> resolution or escalation -> ticket -> audit log.
 
-- **Three-tier triage.** Security-looking messages (phishing, malware,
-  lost devices) escalate to a critical ticket immediately, before any
-  other processing. Known low-risk issues (password resets, VPN setup)
-  get instant self-serve answers from the knowledge base. Everything else
-  goes through assisted troubleshooting.
+- **Security escalation reaches a named human, not a channel.**
+  Security-looking messages (phishing, malware, lost devices) escalate
+  to a critical ticket immediately, and named responders get paged
+  directly with an Acknowledge button. Incidents carry an
+  acknowledgment SLA (default 15 minutes); a watchdog re-escalates
+  anything unacknowledged past its deadline, loudly, and records every
+  sweep in the audit log. Containment actions (disable account, wipe
+  device) are deliberately *not* automated — they stay human decisions.
+  Known low-risk issues (password resets, VPN setup) get instant
+  self-serve answers from the knowledge base; everything else goes
+  through assisted troubleshooting.
 - **The assistant refuses to guess.** Missing required details are asked
   for, never fabricated. After a configurable number of clarifying
   exchanges without resolution, the assistant escalates with the complete
@@ -54,6 +60,7 @@ backend/app/
 │   ├── ticket_service.py             # tickets for every outcome
 │   ├── audit_service.py              # append-only JSONL audit log
 │   ├── takeover_service.py           # live IT oversight state
+│   ├── security_escalation_service.py # responder paging, ack SLA, watchdog
 │   ├── conversation_service.py       # conversation/message storage
 │   ├── anthropic_service.py          # LLM calls
 │   ├── search_service.py             # RAG search
@@ -126,6 +133,9 @@ pytest
 | `POST /it/conversations/{id}/takeover` | IT takes over; assistant silences |
 | `GET /it/tickets` | Ticket queue with statuses |
 | `GET /it/audit` | Audit trail, optionally per conversation |
+| `GET /it/security/incidents` | Open security incidents, paging/ack state |
+| `POST /it/security/incidents/{id}/acknowledge` | Responder takes ownership |
+| `POST /it/security/sweep` | Watchdog: re-escalate unacknowledged incidents |
 
 ## Design principles
 
@@ -139,3 +149,6 @@ pytest
    so — timestamps and usernames on every action, including failures.
 4. **Humans stay in the loop where it matters.** The assistant handles
    the repetitive parts; IT can watch and intervene at any moment.
+5. **Silence is a failure condition.** Security incidents demand
+   acknowledgment from a named human within an SLA; unanswered paging
+   re-escalates automatically instead of failing quietly.
