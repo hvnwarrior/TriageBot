@@ -7,5 +7,12 @@ venv/
 logs/
 docs/cache/*
 !docs/cache/.gitkeep
-# ChromaDB vector store
+
+# Databases and runtime data (contains conversations, tickets, audit logs)
+data/*.db
+data/*.db-journal
+data/*.jsonl
 data/vector_store/
+
+# Keep the directory itself in git
+!data/.gitkeep
