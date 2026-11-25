@@ -44,9 +44,10 @@ backend/app/
 ├── api/                  # FastAPI routers
 │   ├── assistant.py      #   employee-facing: send message, history
 │   ├── it_console.py     #   IT-facing: tickets, audit, watch/join/takeover
-│   ├── chat.py           #   legacy direct chat (kept for compatibility)
 │   ├── documents.py      #   knowledge base upload/indexing
 │   └── health.py
+├── adapters/
+│   └── slack_adapter.py  # Slack Socket Mode integration (optional)
 ├── services/
 │   ├── support_assistant_service.py  # orchestration of the full flow
 │   ├── triage_service.py             # three-tier classification
@@ -60,6 +61,11 @@ backend/app/
 │   ├── vector_store.py               # ChromaDB
 │   └── document_*                    # knowledge base ingestion
 └── main.py
+frontend/                   # chat demo wired to the assistant API
+scripts/
+└── demo_conversation.py    # scripted end-to-end demo (3 scenarios)
+tests/
+└── test_services.py        # smoke tests: triage, tickets, audit, takeover
 ```
 
 **Storage:** SQLite for conversations and tickets, JSONL for the audit
@@ -68,6 +74,16 @@ infrastructure you own — no third-party SaaS in the data path.
 
 ## Running it
 
+With Docker (recommended):
+
+```bash
+cp .env.example .env          # set IT_COPILOT_ANTHROPIC_API_KEY
+docker compose up
+# frontend on http://localhost:8080, API on http://localhost:8000/docs
+```
+
+Without Docker:
+
 ```bash
 cp .env.example .env          # set IT_COPILOT_ANTHROPIC_API_KEY
 cd backend
@@ -75,10 +91,31 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Then load the knowledge base (`docs/` is pre-organized into categories
-like `microsoft/`, `jamf/`, `powershell/`) via the documents API and try
-the assistant at `http://localhost:8000/docs` (Swagger UI) or
-`scripts/demo_conversation.py`.
+Load the knowledge base (`docs/` is pre-organized into categories like
+`microsoft/`, `jamf/`, `powershell/`) via the documents API.
+
+**Scripted demo** (works without the server or UI):
+
+```bash
+cd backend
+python -m scripts.demo_conversation
+```
+
+**Slack adapter** (optional):
+
+```bash
+pip install -r requirements-slack.txt
+export SLACK_BOT_TOKEN=... SLACK_APP_TOKEN=...
+python -m app.adapters.slack_adapter
+```
+
+**Tests:**
+
+```bash
+cd backend
+pip install -r requirements-test.txt
+pytest
+```
 
 ## API highlights
 
