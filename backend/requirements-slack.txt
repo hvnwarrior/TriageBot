@@ -1,0 +1,4 @@
+# Optional dependencies for the Slack adapter.
+# Install with:  pip install -r requirements-slack.txt
+slack-bolt==1.21.2
+slack-sdk==3.35.0
