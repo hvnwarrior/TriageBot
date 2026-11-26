@@ -1,6 +1,6 @@
 # TriageBot
 
-A private, AI-powered IT assistant for small teams: employees get help in
+A private, AI-powered IT assistant for teams: employees get help in
 the channel they already use, IT gets documented tickets and a full audit
 trail, and nobody has to start from scratch.
 
